@@ -9,6 +9,7 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/tbpixel/adventurer-registry/characters"
@@ -27,6 +28,7 @@ func main() {
 
 	_ = godotenv.Load()
 	conf := config.Config{
+		Host: os.Getenv("APP_HOST"),
 		Port: os.Getenv("PORT"),
 		Discord: config.Discord{
 			Token: os.Getenv("DISCORD_TOKEN"),
@@ -71,6 +73,23 @@ func main() {
 		http.HandleFunc("/", health)
 		log.Printf("server listening on port:%s", conf.Port)
 		err = http.ListenAndServe(fmt.Sprintf(":%s", conf.Port), nil)
+	}()
+
+	// Ticker to ping service every 5 minutes, preventing idle
+	ticker := time.NewTicker(5 * time.Minute)
+	quitTicker := make(chan os.Signal, 1)
+	signal.Notify(quitTicker, syscall.SIGINT, syscall.SIGTERM, os.Interrupt, os.Kill)
+	go func() {
+		for {
+			select {
+			case <-ticker.C:
+				_, _ = http.Get(conf.Host)
+				// do stuff
+			case <-quitTicker:
+				ticker.Stop()
+				return
+			}
+		}
 	}()
 
 	// Wait here until CTRL-C or other term signal is received.
@@ -297,7 +316,7 @@ func writePrivate(content string, s *discordgo.Session, m *discordgo.MessageCrea
 	}
 }
 
-func health(w http.ResponseWriter, r *http.Request) {
+func health(w http.ResponseWriter, _ *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	_, _ = fmt.Fprintf(w, "online\n")
 }

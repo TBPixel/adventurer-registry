@@ -1,6 +1,7 @@
 package config
 
 type Config struct {
+	Host     string
 	Port     string
 	Database DB
 	Discord  Discord
