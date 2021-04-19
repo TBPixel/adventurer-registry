@@ -239,7 +239,6 @@ func (b Bot) handleCharacter(name string, s *discordgo.Session, m *discordgo.Mes
 func (b Bot) handleHelp(s *discordgo.Session, m *discordgo.MessageCreate) error {
 	help := "AdventureRegistry command help:"
 	help += "\nThis bots commands can only be used in server. It will DM you to reduce server noise sometimes, but please use it's commands **in server**."
-	help += "\n**note: this bot is an early version; profile data may be lost, use ONLY for testing**"
 	help += "\n`!ar` - is the bots command prefix. All commands will be prefixed with this"
 	help += "\n`!ar list` - will list the names of all currently registered characters. Use this to confirm spelling when looking up a character"
 	help += "\n`!ar register \"Character Name\" TypeFullDescriptionHere` - will allow you to add a character to the list"
@@ -286,6 +285,7 @@ func writePrivate(content string, s *discordgo.Session, m *discordgo.MessageCrea
 		return
 	}
 
+	content = "**Note: this bot DM'd you to reduce noise in a server, but it's commands ONLY work in the server. Remember to return to it before entering any !ar commands!**\n" + content
 	_, err = s.ChannelMessageSend(channel.ID, content)
 	if err != nil {
 		log.Println(err)
