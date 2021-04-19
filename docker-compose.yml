@@ -1,0 +1,17 @@
+# this docker-compose file exists as a development tool to spin up service dependencies
+version: "3.9"
+services:
+  postgres:
+    image: postgres:13.2
+    ports:
+      - "5432:5432"
+    restart: always
+    environment:
+      POSTGRES_DB: adventurer_registry
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: secret
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
