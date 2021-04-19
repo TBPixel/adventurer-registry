@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"os/signal"
 	"strings"
@@ -64,6 +65,17 @@ func main() {
 		log.Fatalln(err)
 		return
 	}
+
+	go func() {
+		err = http.ListenAndServe(fmt.Sprintf(":%s", conf.Port), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(200)
+			_, err := w.Write([]byte("online"))
+			if err != nil {
+				log.Println(err)
+				w.WriteHeader(500)
+			}
+		}))
+	}()
 
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
