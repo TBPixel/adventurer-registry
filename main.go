@@ -27,6 +27,7 @@ func main() {
 
 	_ = godotenv.Load()
 	conf := config.Config{
+		Port: os.Getenv("PORT"),
 		Discord: config.Discord{
 			Token: os.Getenv("DISCORD_TOKEN"),
 		},
@@ -67,14 +68,9 @@ func main() {
 	}
 
 	go func() {
-		err = http.ListenAndServe(fmt.Sprintf(":%s", conf.Port), http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.WriteHeader(200)
-			_, err := w.Write([]byte("online"))
-			if err != nil {
-				log.Println(err)
-				w.WriteHeader(500)
-			}
-		}))
+		http.HandleFunc("/", health)
+		log.Printf("server listening on port:%s", conf.Port)
+		err = http.ListenAndServe(fmt.Sprintf(":%s", conf.Port), nil)
 	}()
 
 	// Wait here until CTRL-C or other term signal is received.
@@ -299,4 +295,9 @@ func writePrivate(content string, s *discordgo.Session, m *discordgo.MessageCrea
 		log.Println(err)
 		return
 	}
+}
+
+func health(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+	_, _ = fmt.Fprintf(w, "online\n")
 }
