@@ -20,8 +20,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_guild_id_name ON characters(gui
 `
 
 // Connect to the remote database, running a ping to verify
-func Connect(config config.DB) (*DB, error) {
-	conn, err := sqlx.Connect("postgres", config.String())
+func Connect(conf config.DB) (*DB, error) {
+	conn, err := sqlx.Connect("postgres", conf.URL)
 	if err != nil {
 		return nil, err
 	}

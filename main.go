@@ -30,11 +30,7 @@ func main() {
 			Token: os.Getenv("DISCORD_TOKEN"),
 		},
 		Database: config.DB{
-			Host:         os.Getenv("DB_HOST"),
-			User:         os.Getenv("DB_USER"),
-			Password:     os.Getenv("DB_PASSWORD"),
-			DatabaseName: os.Getenv("DB_NAME"),
-			SSLMode:      os.Getenv("DB_SSL_MODE") == "true",
+			URL: os.Getenv("DATABASE_URL"),
 		},
 	}
 	db, err := pq.Connect(conf.Database)
