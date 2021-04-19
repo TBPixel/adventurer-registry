@@ -21,11 +21,6 @@ const (
 	prefix = "!ar"
 )
 
-//var (
-//BotToken   = flag.String("token", "", "Bot access token")
-//characters = registry.NewUserStorage()
-//)
-
 func main() {
 	flag.Parse()
 
