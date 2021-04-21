@@ -397,7 +397,6 @@ func writePrivate(content string, s *discordgo.Session, m *discordgo.MessageCrea
 		return
 	}
 
-	content = "**Note: this bot DM'd you to reduce noise in a server, but it's commands ONLY work in the server. Remember to return to it before entering any !ar commands!**\n" + content
 	_, err = s.ChannelMessageSend(channel.ID, content)
 	if err != nil {
 		log.Println(err)
