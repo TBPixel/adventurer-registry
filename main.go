@@ -245,9 +245,13 @@ func (b Bot) handleUnregister(name string, s *discordgo.Session, m *discordgo.Me
 	if dm {
 		err = b.db.Registry.DeleteByAuthorID(name, m.Author.ID)
 	} else {
-		err = b.db.Registry.Delete(name, m.GuildID)
+		err = b.db.Registry.Delete(name, m.Author.ID, m.GuildID)
 	}
 	if err != nil {
+		if err == characters.ErrPermissionDenied {
+			return err
+		}
+
 		log.Println(err)
 		writeErr(s, m)
 		return nil

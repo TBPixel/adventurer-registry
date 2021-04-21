@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	ErrExists   = fmt.Errorf("character by that name already exists")
-	ErrNotFound = fmt.Errorf("character by that name could not be found")
+	ErrExists           = fmt.Errorf("character by that name already exists")
+	ErrNotFound         = fmt.Errorf("character by that name could not be found")
+	ErrPermissionDenied = fmt.Errorf("you do not have permission to do that")
 )
 
 type Character struct {

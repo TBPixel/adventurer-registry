@@ -115,11 +115,15 @@ func (r RegistryDB) Update(name, profile, guildID string) (*characters.Character
 }
 
 // Delete a character permanently, found by name and guild_id
-func (r RegistryDB) Delete(name, guildID string) error {
+func (r RegistryDB) Delete(name, authorID, guildID string) error {
 	// ensure delete is safe even if the character does not exist
 	char, _ := r.Find(name, guildID)
 	if char == nil {
 		return nil
+	}
+
+	if char.AuthorID != authorID {
+		return characters.ErrPermissionDenied
 	}
 
 	stmt, err := r.db.Preparex("DELETE FROM characters WHERE name = $1 AND guild_id = $2")
@@ -137,6 +141,10 @@ func (r RegistryDB) DeleteByAuthorID(name, authorID string) error {
 	char, _ := r.FindByAuthorID(name, authorID)
 	if char == nil {
 		return nil
+	}
+
+	if char.AuthorID != authorID {
+		return characters.ErrPermissionDenied
 	}
 
 	stmt, err := r.db.Preparex("DELETE FROM characters WHERE name = $1 AND author_id = $2")
