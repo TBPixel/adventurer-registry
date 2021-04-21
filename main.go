@@ -349,7 +349,7 @@ func (b Bot) handleExport(s *discordgo.Session, m *discordgo.MessageCreate) erro
 
 func (b Bot) handleHelp(s *discordgo.Session, m *discordgo.MessageCreate) error {
 	help := "AdventureRegistry command help:"
-	help += "\n**Characters registered with this bot are linked to you and the server you are in. Expect that characters you create in DMs with this bot will only be available in DMs with this bot, and characters you create in a server will only be available in that server.**\n"
+	help += "\n**Characters registered with this bot are linked to you and the server you are in. Expect that characters you create in DMs with this bot will not be available in any servers, however all characters you create anywhere will be available to you in DMs.**\n"
 	help += "\n`!ar` - is the bots command prefix. All commands will be prefixed with this"
 	help += "\n`!ar list` - will list the names of all currently registered characters. Use this to confirm spelling when looking up a character"
 	help += "\n`!ar register \"Character Name\" TypeFullDescriptionHere` - will allow you to add a character to the list"
