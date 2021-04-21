@@ -25,7 +25,6 @@ type RegistryDB struct {
 func (r RegistryDB) Characters(guildID string) ([]characters.Character, error) {
 	var chars []sqlCharacter
 	err := r.db.Select(&chars, "SELECT * FROM characters WHERE guild_id = $1", guildID)
-	//rows, err := r.db.Queryx("", guildID)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return []characters.Character{}, nil
@@ -34,18 +33,30 @@ func (r RegistryDB) Characters(guildID string) ([]characters.Character, error) {
 		return nil, err
 	}
 
-	//var chars []sqlCharacter
-	//err = rows.StructScan(&chars)
-	//if err != nil {
-	//	return nil, err
-	//}
-
 	return sqlToCharacters(chars), nil
 }
 
 // Find a character by their name and guild ID
 func (r RegistryDB) Find(name, guildID string) (*characters.Character, error) {
 	row := r.db.QueryRowx("SELECT * FROM characters WHERE name = $1 AND guild_id = $2 LIMIT 1", name, guildID)
+
+	var char sqlCharacter
+	err := row.StructScan(&char)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, characters.ErrNotFound
+		}
+
+		return nil, err
+	}
+
+	mapped := sqlToCharacters([]sqlCharacter{char})
+	return &mapped[0], nil
+}
+
+// FindByAuthorID a character by their name and guild ID
+func (r RegistryDB) FindByAuthorID(name, authorID string) (*characters.Character, error) {
+	row := r.db.QueryRowx("SELECT * FROM characters WHERE name = $1 AND author_id = $2 LIMIT 1", name, authorID)
 
 	var char sqlCharacter
 	err := row.StructScan(&char)
@@ -118,6 +129,21 @@ func (r RegistryDB) Delete(name, guildID string) error {
 
 	_, err = stmt.Exec(name, guildID)
 	return err
+}
+
+// CharactersByAuthor returns a list of registered by an author
+func (r RegistryDB) CharactersByAuthor(authorId string) ([]characters.Character, error) {
+	var chars []sqlCharacter
+	err := r.db.Select(&chars, "SELECT * FROM characters WHERE author_id = $1", authorId)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return []characters.Character{}, nil
+		}
+
+		return nil, err
+	}
+
+	return sqlToCharacters(chars), nil
 }
 
 func sqlToCharacters(chars []sqlCharacter) (c []characters.Character) {

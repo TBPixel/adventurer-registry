@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS characters (
 );
 
 CREATE UNIQUE INDEX IF NOT EXISTS idx_characters_guild_id_name ON characters(guild_id, name);
+CREATE UNIQUE INDEX IF NOT EXISTS ids_characters_author_id ON characters(author_id);
 `
 
 // Connect to the remote database, running a ping to verify

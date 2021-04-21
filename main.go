@@ -60,7 +60,7 @@ func main() {
 	dg.AddHandler(bot.messageCreate)
 
 	// In this example, we only care about receiving message events.
-	dg.Identify.Intents = discordgo.IntentsGuildMessages
+	dg.Identify.Intents = discordgo.IntentsGuildMessages | discordgo.IntentsDirectMessages
 
 	// Open a websocket connection to Discord and begin listening.
 	err = dg.Open()
@@ -113,9 +113,8 @@ type Bot struct {
 // message is created on any channel that the authenticated bot has access to.
 func (b Bot) messageCreate(s *discordgo.Session, m *discordgo.MessageCreate) {
 
-	// Ignore all messages created by the bot itself
-	// This isn't required in this specific example but it's a good practice.
-	if m.Author.ID == s.State.User.ID {
+	// Ignore all messages created by the bots
+	if m.Author.ID == s.State.User.ID || m.Author.Bot {
 		return
 	}
 
@@ -154,6 +153,8 @@ func (b Bot) delegateCommands(command, content string, s *discordgo.Session, m *
 		return b.handleUpdate(content, s, m)
 	case "character":
 		return b.handleCharacter(content, s, m)
+	case "export":
+		return b.handleExport(s, m)
 	case "help":
 		return b.handleHelp(s, m)
 	default:
@@ -162,9 +163,24 @@ func (b Bot) delegateCommands(command, content string, s *discordgo.Session, m *
 }
 
 func (b Bot) handleList(s *discordgo.Session, m *discordgo.MessageCreate) error {
-	chars, err := b.db.Registry.Characters(m.GuildID)
+	var chars []characters.Character
+	var err error
+	dm, err := isDM(s, m)
 	if err != nil {
-		return err
+		log.Println(err)
+		writeErr(s, m)
+		return nil
+	}
+
+	if dm {
+		chars, err = b.db.Registry.CharactersByAuthor(m.Author.ID)
+	} else {
+		chars, err = b.db.Registry.Characters(m.GuildID)
+	}
+	if err != nil {
+		log.Println(err)
+		writeErr(s, m)
+		return nil
 	}
 
 	if len(chars) == 0 {
@@ -205,7 +221,12 @@ func (b Bot) handleRegister(content string, s *discordgo.Session, m *discordgo.M
 		Profile:  fmt.Sprintf("%s%s", profile, attachments),
 	})
 	if err != nil {
-		return err
+		if err == characters.ErrExists {
+			return err
+		}
+		log.Println(err)
+		writeErr(s, m)
+		return nil
 	}
 
 	write(fmt.Sprintf("%s has been registered!", c.Name), s, m)
@@ -216,7 +237,9 @@ func (b Bot) handleRegister(content string, s *discordgo.Session, m *discordgo.M
 func (b Bot) handleUnregister(name string, s *discordgo.Session, m *discordgo.MessageCreate) error {
 	err := b.db.Registry.Delete(name, m.GuildID)
 	if err != nil {
-		return err
+		log.Println(err)
+		writeErr(s, m)
+		return nil
 	}
 
 	write(fmt.Sprintf("'%s' has been unregistered!", name), s, m)
@@ -240,7 +263,13 @@ func (b Bot) handleUpdate(content string, s *discordgo.Session, m *discordgo.Mes
 
 	_, err = b.db.Registry.Update(name, profile, m.GuildID)
 	if err != nil {
-		return err
+		if err == characters.ErrNotFound {
+			return err
+		}
+
+		log.Println(err)
+		writeErr(s, m)
+		return nil
 	}
 
 	write(fmt.Sprintf("'%s' has been updated!", name), s, m)
@@ -248,9 +277,26 @@ func (b Bot) handleUpdate(content string, s *discordgo.Session, m *discordgo.Mes
 }
 
 func (b Bot) handleCharacter(name string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	c, err := b.db.Registry.Find(name, m.GuildID)
+	dm, err := isDM(s, m)
 	if err != nil {
-		write(fmt.Sprintf("No character by the name of '%s' exists in the Adventurer Registry!", name), s, m)
+		log.Println(err)
+		writeErr(s, m)
+		return nil
+	}
+
+	var c *characters.Character
+	if dm {
+		c, err = b.db.Registry.FindByAuthorID(name, m.Author.ID)
+	} else {
+		c, err = b.db.Registry.Find(name, m.GuildID)
+	}
+	if err != nil {
+		if err == characters.ErrNotFound {
+			write(fmt.Sprintf("No character by the name of '%s' exists in the Adventurer Registry!", name), s, m)
+			return nil
+		}
+		log.Println(err)
+		writeErr(s, m)
 		return nil
 	}
 
@@ -259,15 +305,58 @@ func (b Bot) handleCharacter(name string, s *discordgo.Session, m *discordgo.Mes
 	return nil
 }
 
+func (b Bot) handleExport(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	chars, err := b.db.Registry.CharactersByAuthor(m.Author.ID)
+	if err != nil {
+		log.Println(err)
+		writeErr(s, m)
+		return nil
+	}
+
+	if len(chars) == 0 {
+		writePrivate("You don't seem to have any characters registered yet.", s, m)
+		return nil
+	}
+
+	channel, err := s.UserChannelCreate(m.Author.ID)
+	if err != nil {
+		log.Println(err)
+		writeErr(s, m)
+		return nil
+	}
+
+	w := ""
+	for _, c := range chars {
+		w += fmt.Sprintf("**%s**\n%s", c.Name, c.Profile)
+		w += "\n\n\n" // generous breathing room for the next character
+	}
+
+	_, err = s.ChannelMessageSendComplex(channel.ID, &discordgo.MessageSend{
+		File: &discordgo.File{
+			Name:        fmt.Sprintf("%s character export", m.Author.Username),
+			ContentType: "text/plain",
+			Reader:      strings.NewReader(w),
+		},
+	})
+	if err != nil {
+		log.Println(err)
+		writeErr(s, m)
+		return nil
+	}
+
+	return nil
+}
+
 func (b Bot) handleHelp(s *discordgo.Session, m *discordgo.MessageCreate) error {
 	help := "AdventureRegistry command help:"
-	help += "\nThis bots commands can only be used in server. It will DM you to reduce server noise sometimes, but please use it's commands **in server**."
+	help += "\n**Characters registered with this bot are linked to you and the server you are in. Expect that characters you create in DMs with this bot will only be available in DMs with this bot, and characters you create in a server will only be available in that server.**\n"
 	help += "\n`!ar` - is the bots command prefix. All commands will be prefixed with this"
 	help += "\n`!ar list` - will list the names of all currently registered characters. Use this to confirm spelling when looking up a character"
 	help += "\n`!ar register \"Character Name\" TypeFullDescriptionHere` - will allow you to add a character to the list"
 	help += "\n`!ar unregister Character Name` - Removes a character from the registry, this is permanent"
 	help += "\n`!ar update \"Character Name\" TypeFullDescriptionHere` - Updates a characters profile in the registry"
 	help += "\n`!ar character Character Name` - Fetch a characters profile by name as a DM"
+	help += "\n`!ar export` - Export all characters created by you"
 	help += "\n`!ar help` shows this help screen"
 
 	write(help, s, m)
@@ -314,6 +403,19 @@ func writePrivate(content string, s *discordgo.Session, m *discordgo.MessageCrea
 		log.Println(err)
 		return
 	}
+}
+
+func writeErr(s *discordgo.Session, m *discordgo.MessageCreate) {
+	write("Whoops! Something's gone wrong!\nWe're not sure what's happened but this issue has been logged and will be investigated in case a fix is needed.", s, m)
+}
+
+func isDM(s *discordgo.Session, m *discordgo.MessageCreate) (bool, error) {
+	channel, err := s.UserChannelCreate(m.Author.ID)
+	if err != nil {
+		return false, err
+	}
+
+	return channel.ID == m.ChannelID, nil
 }
 
 func health(w http.ResponseWriter, _ *http.Request) {
