@@ -235,7 +235,18 @@ func (b Bot) handleRegister(content string, s *discordgo.Session, m *discordgo.M
 }
 
 func (b Bot) handleUnregister(name string, s *discordgo.Session, m *discordgo.MessageCreate) error {
-	err := b.db.Registry.Delete(name, m.GuildID)
+	dm, err := isDM(s, m)
+	if err != nil {
+		log.Println(err)
+		writeErr(s, m)
+		return nil
+	}
+
+	if dm {
+		err = b.db.Registry.DeleteByAuthorID(name, m.Author.ID)
+	} else {
+		err = b.db.Registry.Delete(name, m.GuildID)
+	}
 	if err != nil {
 		log.Println(err)
 		writeErr(s, m)

@@ -131,6 +131,23 @@ func (r RegistryDB) Delete(name, guildID string) error {
 	return err
 }
 
+// DeleteByAuthorID a character permanently, found by name and author_id
+func (r RegistryDB) DeleteByAuthorID(name, authorID string) error {
+	// ensure delete is safe even if the character does not exist
+	char, _ := r.FindByAuthorID(name, authorID)
+	if char == nil {
+		return nil
+	}
+
+	stmt, err := r.db.Preparex("DELETE FROM characters WHERE name = $1 AND author_id = $2")
+	if err != nil {
+		return err
+	}
+
+	_, err = stmt.Exec(name, authorID)
+	return err
+}
+
 // CharactersByAuthor returns a list of registered by an author
 func (r RegistryDB) CharactersByAuthor(authorId string) ([]characters.Character, error) {
 	var chars []sqlCharacter
