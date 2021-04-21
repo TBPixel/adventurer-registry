@@ -195,7 +195,7 @@ func (b Bot) handleList(s *discordgo.Session, m *discordgo.MessageCreate) error 
 
 	list := strings.Join(names, "\n")
 
-	writePrivate(fmt.Sprintf("All characters currently registered:\n%s", list), s, m)
+	write(fmt.Sprintf("All characters currently registered:\n%s", list), s, m)
 
 	return nil
 }
@@ -306,6 +306,18 @@ func (b Bot) handleCharacter(name string, s *discordgo.Session, m *discordgo.Mes
 }
 
 func (b Bot) handleExport(s *discordgo.Session, m *discordgo.MessageCreate) error {
+	dm, err := isDM(s, m)
+	if err != nil {
+		log.Println(err)
+		writeErr(s, m)
+		return nil
+	}
+
+	if !dm {
+		writePrivate("export is only available in DMs!", s, m)
+		return nil
+	}
+
 	chars, err := b.db.Registry.CharactersByAuthor(m.Author.ID)
 	if err != nil {
 		log.Println(err)
